@@ -19,7 +19,7 @@
 }
 
 - (void)request:(RKRequest*)request didLoadResponse:(RKResponse*)response {
-	RKLogDebug(@"Request Did Load Response");
+	RKLogDebug(@"Request Did Load Response: %@", response.bodyAsString);
 }
 
 @end

@@ -73,7 +73,7 @@
 
 - (BOOL)performMapping:(NSError**)error {
     BOOL success = [super performMapping:error];
-    [self connectRelationships];
+//    [self connectRelationships];
     return success;
 }
 

@@ -18,6 +18,7 @@
 @interface RKManagedObjectLoader : RKObjectLoader {
     NSManagedObjectID* _targetObjectID;	
     NSMutableSet* _managedObjectKeyPaths;
+    NSMutableArray* _managedObjects;
     BOOL _deleteObjectOnFailure;
 }
 

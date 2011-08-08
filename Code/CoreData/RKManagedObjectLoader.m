@@ -10,6 +10,7 @@
 #import "RKManagedObjectLoader.h"
 #import "RKURL.h"
 #import "RKObjectMapper.h"
+#import "RKManagedObjectMapping.h"
 #import "RKManagedObjectThreadSafeInvocation.h"
 #import "NSManagedObject+ActiveRecord.h"
 #import "../ObjectMapping/RKObjectLoader_Internals.h"
@@ -31,6 +32,7 @@
     _targetObjectID = nil;
     _deleteObjectOnFailure = NO;
     [_managedObjectKeyPaths release];
+    [_managedObjects release];
     
     [super dealloc];
 }
@@ -50,8 +52,43 @@
 - (void)objectMapper:(RKObjectMapper*)objectMapper didMapFromObject:(id)sourceObject toObject:(id)destinationObject atKeyPath:(NSString*)keyPath usingMapping:(RKObjectMapping*)objectMapping {
     if ([destinationObject isKindOfClass:[NSManagedObject class]]) {
         [_managedObjectKeyPaths addObject:keyPath];
-    }
+        if (nil == _managedObjects) {
+            _managedObjects = [NSMutableArray new];
+        }
+        [_managedObjects addObject:destinationObject];
+    }  
 }
+
+
+- (void)objectMapperDidFinishMapping:(RKObjectMapper*)objectMapper {
+    RKObjectManager* manager = [RKObjectManager sharedManager];
+    
+    for (NSManagedObject* object in _managedObjects) {
+        RKManagedObjectMapping* objectMapping = (RKManagedObjectMapping *)[manager.mappingProvider objectMappingForClass:[object class]];
+        NSDictionary* relationshipsAndPrimaryKeyAttributes = [objectMapping relationshipsAndPrimaryKeyAttributes];
+        for (NSString* relationshipName in relationshipsAndPrimaryKeyAttributes) {
+            NSString* primaryKeyAttribute = [relationshipsAndPrimaryKeyAttributes objectForKey:relationshipName];
+            RKObjectRelationshipMapping* relationshipMapping = [objectMapping mappingForKeyPath:relationshipName];
+            id<RKObjectMappingDefinition> mapping = relationshipMapping.mapping;
+            if (! [mapping isKindOfClass:[RKObjectMapping class]]) {
+                RKLogWarning(@"Can only connect relationships for RKObjectMapping relationships. Found %@: Skipping...", NSStringFromClass([mapping class]));
+                continue;
+            }
+            RKObjectMapping* objectMapping = (RKObjectMapping*)mapping;
+            NSAssert(relationshipMapping, @"Unable to find relationship mapping '%@' to connect by primaryKey", relationshipName);
+            NSAssert([relationshipMapping isKindOfClass:[RKObjectRelationshipMapping class]], @"Expected mapping for %@ to be a relationship mapping", relationshipName);
+            NSAssert([relationshipMapping.mapping isKindOfClass:[RKManagedObjectMapping class]], @"Can only connect RKManagedObjectMapping relationships");
+            NSString* primaryKeyAttributeOfRelatedObject = [(RKManagedObjectMapping*)objectMapping primaryKeyAttribute];
+            NSAssert(primaryKeyAttributeOfRelatedObject, @"Cannot connect relationship: mapping for %@ has no primary key attribute specified", NSStringFromClass(objectMapping.objectClass));
+            id valueOfLocalPrimaryKeyAttribute = [object valueForKey:primaryKeyAttribute];
+            if (valueOfLocalPrimaryKeyAttribute) {
+                id relatedObject = [objectMapping.objectClass findFirstByAttribute:primaryKeyAttributeOfRelatedObject withValue:valueOfLocalPrimaryKeyAttribute];
+                [object setValue:relatedObject forKey:relationshipName];
+            }
+        }
+    }  
+}
+
 
 #pragma mark - RKObjectLoader overrides
 
