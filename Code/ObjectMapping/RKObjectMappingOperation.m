@@ -431,7 +431,12 @@ BOOL RKObjectIsValueEqualToValue(id sourceValue, id destinationValue) {
     
     [self applyNestedMappings];
     BOOL mappedAttributes = [self applyAttributeMappings];
-    BOOL mappedRelationships = [self applyRelationshipMappings];
+    BOOL mappedRelationships = NO;
+    
+    // don't map relationsships if we are converting to NSDictionary (for post to server)
+    if ( NO == [[self.destinationObject class] isSubclassOfClass:[NSDictionary class]] )
+        mappedRelationships = [self applyRelationshipMappings];
+    
     if ((mappedAttributes || mappedRelationships) && _validationError == nil) {
         RKLogDebug(@"Finished mapping operation successfully...");
         return YES;
