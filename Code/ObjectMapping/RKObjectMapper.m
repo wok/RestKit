@@ -180,6 +180,9 @@
     }
     
     for (id mappableObject in objectsToMap) {
+	    if ( mappableObject == [NSNull null] )
+            continue;
+
         id destinationObject = [self objectWithMapping:mapping andData:mappableObject];
         if (! destinationObject) {            
             continue;
